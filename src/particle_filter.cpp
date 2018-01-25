@@ -21,14 +21,16 @@ using namespace std;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
     if (!is_initialized){
-        
+        if (tracer == true){
+            cout << "Initialization started...";
+        }
         // Creating the normal distribution around GPS coordinates
         default_random_engine gen;
         double std_x = std[0];
         double std_y = std[1];
         double std_theta = std[2];
         
-        num_particles = 20;
+        num_particles = 1;
         
         normal_distribution<double> dist_x(x, std_x);
         normal_distribution<double> dist_y(y, std_y);
@@ -47,11 +49,18 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
         }
         
         is_initialized = true;
+        if (tracer == true){
+            cout << "completed." << endl;
+        }
+        
     }
-    return;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
+   
+   if (tracer == true){
+        cout << "Prediction started...";
+    }
    
     double EPS = 1E-3;
     
@@ -79,9 +88,13 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
             y += velocity*delta_t*sin(theta);
         }
         
+        
         particles[p].x = x + noise_x(gen);
         particles[p].y = y + noise_y(gen);
         particles[p].theta = theta + noise_theta(gen);
+    }
+    if (tracer == true){
+        cout << "completed." << endl;
     }
 }
 
@@ -103,6 +116,10 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
 		const std::vector<LandmarkObs> &observations, const Map &map_landmarks) {
+    
+    if (tracer == true){
+        cout << "Weight update started...";
+    }
 	
     double sx = pow(std_landmark[0], 2);
     double sy = pow(std_landmark[1], 2);
@@ -151,10 +168,15 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         particles[p].weight = weight;
         weights[p] = weight;
     }
+    if (tracer == true){
+        cout << "finished." << endl;
+    }
 }
 
 void ParticleFilter::resample() {
-   	
+   	if (tracer == true){
+        cout << "Resampling started...";
+    }
     default_random_engine gen;
     discrete_distribution<> weights_pmf(weights.begin(), weights.end());
     
@@ -163,6 +185,9 @@ void ParticleFilter::resample() {
         new_particles.push_back(particles[weights_pmf(gen)]);
     }
     particles = new_particles;
+    if (tracer == true){
+        cout << "finished." << endl;
+    }
 }
 
 Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<int>& associations, 
