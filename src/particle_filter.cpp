@@ -81,38 +81,76 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
         
         particles[p].x = x + noise_x(gen);
         particles[p].y = y + noise_y(gen);
-        particles[p].z = theta + noise_theta(gen);
+        particles[p].theta = theta + noise_theta(gen);
     }
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
 	// Finds the predicted measurement that is closest to each observed measurement and assigns the observed measurement to this particular landmark.
+    // Assumes same coordinate system
 	for (int o = 0; o < observations.size(); o++){
         // Using function defined in helper_functions.h
         double min_dist = std::numeric_limits<double>::infinity();
         for (int p = 0; p < predicted.size(); p++){
-            op_dist = dist(observations[o].x, observations[o].y, predicted[p].x, predicted[p].y);
+            double op_dist = dist(observations[o].x, observations[o].y, predicted[p].x, predicted[p].y);
             if (op_dist < min_dist){
                 min_dist = op_dist;
                 observations[o].id = predicted[p].id;
             }
         }
-        
     }
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
 		const std::vector<LandmarkObs> &observations, const Map &map_landmarks) {
-	// TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
-	//   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
-	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
-	//   according to the MAP'S coordinate system. You will need to transform between the two systems.
-	//   Keep in mind that this transformation requires both rotation AND translation (but no scaling).
-	//   The following is a good resource for the theory:
-	//   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-	//   and the following is a good resource for the actual equation to implement (look at equation 
-	//   3.33
-	//   http://planning.cs.uiuc.edu/node99.html
+	
+    double sx = pow(std_landmark[0], 2);
+    double sy = pow(std_landmark[1], 2);
+    
+    double num = 0;
+    double den = 2*M_PI*std_landmark[0]*std_landmark[1];
+    
+    for (int p = 0; p < particles.size(); p++){
+        // Particle values for coordinate system transformation
+        double px = particles[p].x;
+        double py = particles[p].y;
+        double ptheta = particles[p].theta;
+        
+        // Limiting the search to landmarks within sensor range
+        vector<LandmarkObs> red_landmarks;
+        for (int o = 0; o < observations.size(); o++){
+            for (int l = 0; l < map_landmarks.landmark_list.size(); l++){
+                LandmarkObs newlndmrk{l, map_landmarks.landmark_list[l].x_f, map_landmarks.landmark_list[l].y_f};
+                if (dist(observations[o].x, observations[o].y, map_landmarks.landmark_list[l].x_f, map_landmarks.landmark_list[l].y_f) < sensor_range){
+                    red_landmarks.push_back(newlndmrk);
+                }
+            }
+        }
+        // Converting the observations to global Csys
+        vector<LandmarkObs> obs_in_gcsys;
+        for (int o = 0; o < observations.size(); o++){
+            obs_in_gcsys[o].x = cos(ptheta)*observations[o].x - sin(ptheta)*observations[o].y + px;
+            obs_in_gcsys[o].y = sin(ptheta)*observations[o].x + cos(ptheta)*observations[o].y + py;
+        }
+        
+        // Mapping the observed with predicted landmarks
+        dataAssociation(red_landmarks, obs_in_gcsys);
+        
+        // Finally updating the weight of the particle
+        double weight = 1.0;
+        for (int o = 0; o < obs_in_gcsys.size(); o++){
+            int id = obs_in_gcsys[o].id;
+            double err_x = obs_in_gcsys[o].x - red_landmarks[id].x;
+            double err_y = obs_in_gcsys[o].y - red_landmarks[id].y;
+            
+            // Assuming multivariate Gaussian
+            num = exp(-0.5*(pow(err_x, 2)/sx + pow(err_y, 2)/sy));
+            weight *= num/den;
+        }
+        
+        particles[p].weight = weight;
+        weights[p] = weight;
+    }
 }
 
 void ParticleFilter::resample() {
