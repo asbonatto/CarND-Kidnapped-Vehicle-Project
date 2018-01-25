@@ -55,6 +55,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
    
     double EPS = 1E-3;
     
+    // Creates the noise distribution
+    default_random_engine gen;
+    normal_distribution<double> noise_x(0.0, std_pos[0]);
+    normal_distribution<double> noise_y(0.0, std_pos[1]);
+    normal_distribution<double> noise_theta(0.0, std_pos[2]);
+    
     for (int p = 0; p < num_particles; p++){
         // First step is to update a single particle
         double x = particles[p].x;
@@ -72,15 +78,10 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
             x += velocity*delta_t*cos(theta);
             y += velocity*delta_t*sin(theta);
         }
-        // Now creating a gaussian distribution with the model prediction as mean
-        default_random_engine gen;
-        normal_distribution<double> dist_x(x, std_pos[0]);
-        normal_distribution<double> dist_y(y, std_pos[1]);
-        normal_distribution<double> dist_theta(theta, std_pos[2]);
         
-        particles[p].x = dist_x(gen);
-        particles[p].y = dist_y(gen);
-        particles[p].z = dist_theta(gen);
+        particles[p].x = x + noise_x(gen);
+        particles[p].y = y + noise_y(gen);
+        particles[p].z = theta + noise_theta(gen);
     }
 }
 
