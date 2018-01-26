@@ -46,6 +46,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
             particle.weight = 1.0;
             // Put into the vector
             particles.push_back(particle);
+            weights.push_back(1.0);
         }
         
         is_initialized = true;
@@ -146,8 +147,10 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         // Converting the observations to global Csys
         vector<LandmarkObs> obs_in_gcsys;
         for (int o = 0; o < observations.size(); o++){
-            obs_in_gcsys[o].x = cos(ptheta)*observations[o].x - sin(ptheta)*observations[o].y + px;
-            obs_in_gcsys[o].y = sin(ptheta)*observations[o].x + cos(ptheta)*observations[o].y + py;
+            
+            double x = cos(ptheta)*observations[o].x - sin(ptheta)*observations[o].y + px;
+            double y = sin(ptheta)*observations[o].x + cos(ptheta)*observations[o].y + py;
+            obs_in_gcsys.push_back(LandmarkObs{ observations[o].id, x, y });
         }
         
         // Mapping the observed with predicted landmarks
